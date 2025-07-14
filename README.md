@@ -86,7 +86,7 @@ Add these variables in: **Settings** → **Secrets and variables** → **Actions
 |---------------|-------------|---------|---------|
 | `AZURE_LOCATION` | Azure region | `East US` | `West US 2` |
 | `BUDGET_AMOUNT` | Monthly budget (USD) | `1000` | `5000` |
-| `ALERT_EMAILS` | JSON array of emails | `["admin@example.com"]` | `["finance@company.com"]` |
+| `ALERT_EMAILS` | JSON array of emails | `["diego.castillo@outlook.com"]` | `["finance@company.com"]` |
 | `SMTP_ENABLED` | Enable email reports | `false` | `true` |
 | `REPORT_RECIPIENTS` | Email list for reports | | `admin@company.com,finance@company.com` |
 
@@ -98,8 +98,7 @@ param environment = 'prod'  // or 'dev', 'staging'
 param location = 'East US'
 param budgetAmount = 5000
 param alertEmails = [
-  'finance@yourcompany.com'
-  'engineering@yourcompany.com'
+  'diego.castillo@outlook.com'
 ]
 ```
 
