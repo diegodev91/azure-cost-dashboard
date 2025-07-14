@@ -1,7 +1,7 @@
 # Azure Cost Dashboard
 
-[![Deploy Infrastructure](https://github.com/YOUR_USERNAME/azure-cost-dashboard/actions/workflows/deploy-infrastructure.yml/badge.svg)](https://github.com/YOUR_USERNAME/azure-cost-dashboard/actions/workflows/deploy-infrastructure.yml)
-[![Cost Reporting](https://github.com/YOUR_USERNAME/azure-cost-dashboard/actions/workflows/cost-reporting.yml/badge.svg)](https://github.com/YOUR_USERNAME/azure-cost-dashboard/actions/workflows/cost-reporting.yml)
+[![Deploy Infrastructure](https://github.com/diegodev91/azure-cost-dashboard/actions/workflows/deploy-infrastructure.yml/badge.svg)](https://github.com/diegodev91/azure-cost-dashboard/actions/workflows/deploy-infrastructure.yml)
+[![Cost Reporting](https://github.com/diegodev91/azure-cost-dashboard/actions/workflows/cost-reporting.yml/badge.svg)](https://github.com/diegodev91/azure-cost-dashboard/actions/workflows/cost-reporting.yml)
 
 An enterprise-grade Azure cost tracking solution using **100% Azure native capabilities**. Deploy automated cost monitoring, budgets, alerts, and dashboards across multiple environments without any external dependencies.
 
