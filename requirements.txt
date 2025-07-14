@@ -1,0 +1,7 @@
+azure-identity==1.15.0
+azure-mgmt-costmanagement==4.0.1
+azure-mgmt-resource==23.0.1
+pandas==2.1.4
+matplotlib==3.8.2
+seaborn==0.13.0
+requests==2.31.0

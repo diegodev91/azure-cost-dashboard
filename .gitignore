@@ -1,0 +1,53 @@
+# Sensitive files and data to exclude from public repository
+*.env
+*.env.local
+*.env.production
+*.env.staging
+*.env.development
+
+# Azure credentials and secrets
+azure-credentials.json
+service-principal.json
+**/secrets/**
+**/credentials/**
+
+# Bicep parameter files with real values
+bicep.parameters.json
+bicep.parameters.dev.json
+bicep.parameters.staging.json
+bicep.parameters.prod.json
+
+# Generated reports with potentially sensitive data
+reports/
+*.csv
+*.json
+*.png
+
+# Local configuration files
+config/config.local.json
+config/secrets.json
+
+# IDE and system files
+.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Node modules if any
+node_modules/
+package-lock.json
+
+# Python cache and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# Azure CLI cache
+.azure/

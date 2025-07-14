@@ -1,0 +1,124 @@
+name: Deploy Cost Dashboard Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bicep/**'
+      - '.github/workflows/deploy-infrastructure.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'bicep/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Validate Bicep templates
+      run: |
+        az bicep build --file bicep/main.bicep
+        echo "Bicep templates are valid"
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        environment: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.environment)) || fromJson('["dev"]') }}
+    
+    environment: ${{ matrix.environment }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Create parameters file
+      run: |
+        cat > bicep/bicep.parameters.json << EOF
+        {
+          "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "environment": {
+              "value": "${{ matrix.environment }}"
+            },
+            "location": {
+              "value": "${{ vars.AZURE_LOCATION || 'East US' }}"
+            },
+            "budgetAmount": {
+              "value": ${{ vars.BUDGET_AMOUNT || 1000 }}
+            },
+            "alertEmails": {
+              "value": ${{ vars.ALERT_EMAILS || '["admin@example.com"]' }}
+            },
+            "resourceGroupsToMonitor": {
+              "value": ${{ vars.RESOURCE_GROUPS_TO_MONITOR || '[]' }}
+            }
+          }
+        }
+        EOF
+
+    - name: Deploy Infrastructure
+      run: |
+        az deployment sub create \
+          --location "${{ vars.AZURE_LOCATION || 'East US' }}" \
+          --template-file bicep/main.bicep \
+          --parameters bicep/bicep.parameters.json \
+          --name "cost-dashboard-${{ matrix.environment }}-$(date +%Y%m%d%H%M%S)"
+
+    - name: Get deployment outputs
+      id: deployment
+      run: |
+        DEPLOYMENT_NAME=$(az deployment sub list --query "[?contains(name, 'cost-dashboard-${{ matrix.environment }}')].name | [0]" -o tsv)
+        RESOURCE_GROUP=$(az deployment sub show --name $DEPLOYMENT_NAME --query properties.outputs.resourceGroupName.value -o tsv)
+        STORAGE_ACCOUNT=$(az deployment sub show --name $DEPLOYMENT_NAME --query properties.outputs.storageAccountName.value -o tsv)
+        FUNCTION_APP=$(az deployment sub show --name $DEPLOYMENT_NAME --query properties.outputs.functionAppName.value -o tsv)
+        DASHBOARD_URL=$(az deployment sub show --name $DEPLOYMENT_NAME --query properties.outputs.dashboardUrl.value -o tsv)
+        
+        echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+        echo "storage-account=$STORAGE_ACCOUNT" >> $GITHUB_OUTPUT
+        echo "function-app=$FUNCTION_APP" >> $GITHUB_OUTPUT
+        echo "dashboard-url=$DASHBOARD_URL" >> $GITHUB_OUTPUT
+
+    - name: Summary
+      run: |
+        echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ matrix.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Resource Group**: ${{ steps.deployment.outputs.resource-group }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Storage Account**: ${{ steps.deployment.outputs.storage-account }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Function App**: ${{ steps.deployment.outputs.function-app }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Dashboard URL**: ${{ steps.deployment.outputs.dashboard-url }}" >> $GITHUB_STEP_SUMMARY

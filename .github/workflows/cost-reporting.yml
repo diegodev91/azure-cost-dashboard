@@ -1,0 +1,102 @@
+name: Cost Reporting
+
+on:
+  schedule:
+    # Daily at 8 AM UTC
+    - cron: '0 8 * * *'
+    # Weekly on Monday at 8 AM UTC  
+    - cron: '0 8 * * 1'
+    # Monthly on 1st at 8 AM UTC
+    - cron: '0 8 1 * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to generate report for'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+      reportType:
+        description: 'Type of report to generate'
+        required: true
+        default: 'daily'
+        type: choice
+        options:
+        - daily
+        - weekly
+        - monthly
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  cost-report:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: ${{ github.event_name == 'workflow_dispatch' && fromJson(format('["{0}"]', github.event.inputs.environment)) || fromJson('["dev", "staging", "prod"]') }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install azure-identity azure-mgmt-costmanagement azure-mgmt-resource pandas matplotlib seaborn
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Determine report type
+      id: report-type
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "type=${{ github.event.inputs.reportType }}" >> $GITHUB_OUTPUT
+        elif [ "$(date +%d)" = "01" ]; then
+          echo "type=monthly" >> $GITHUB_OUTPUT
+        elif [ "$(date +%u)" = "1" ]; then
+          echo "type=weekly" >> $GITHUB_OUTPUT
+        else
+          echo "type=daily" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate Cost Report
+      env:
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        ENVIRONMENT: ${{ matrix.environment }}
+        REPORT_TYPE: ${{ steps.report-type.outputs.type }}
+      run: |
+        python scripts/generate-cost-report.py
+
+    - name: Upload Report Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: cost-report-${{ matrix.environment }}-${{ steps.report-type.outputs.type }}
+        path: reports/
+        retention-days: 30
+
+    - name: Send Email Report
+      if: vars.SMTP_ENABLED == 'true'
+      env:
+        SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+        SMTP_PORT: ${{ secrets.SMTP_PORT }}
+        SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        REPORT_RECIPIENTS: ${{ vars.REPORT_RECIPIENTS }}
+        ENVIRONMENT: ${{ matrix.environment }}
+        REPORT_TYPE: ${{ steps.report-type.outputs.type }}
+      run: |
+        python scripts/send-email-report.py
